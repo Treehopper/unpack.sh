@@ -1,0 +1,118 @@
+#!/bin/bash
+
+#This program is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+function tell () #{{{
+{
+    CMD="$1"
+    shift
+    echo -n "\$ $CMD" >/dev/stderr
+    PARM=( "$@" )
+    for IN in "${PARM[@]}"
+    do
+        echo -n " \"$IN\"" >/dev/stderr
+    done
+    echo >/dev/stderr
+	$CMD "$@"
+} #}}}
+
+function help () #{{{
+{
+    ME=`basename $0`
+    HELP="
+ Packs a bunch of files and/or directorys in an archive which
+ type is specified by a file extension.
+
+ Usage: $ME sourcefile1 sourcefile2 ... targetfile.EXTENSION
+ Whereas EXTENSION is one of the following:
+"
+    echo -n "$HELP" >/dev/stderr
+    sed -n "s/^[ \t]*\([^()]*\)) .*/\1/p" $0 | \
+        sed "s/*//g" |\
+        tr "|" " " | \
+        sed "s/\(.*\)/   \1/" >/dev/stderr
+} #}}}
+
+#################### Too few parameters? ###########################{{{
+if [ $# -lt 2 ]
+then
+    help
+    exit 1
+fi
+####################################################################}}}
+
+#################### Last parameter is the target ##################{{{
+PARAM=( "$@" )
+NUM_SOURCES=${#PARAM[@]}
+let NUM_SOURCES--
+TARGET=( "${PARAM[$NUM_SOURCES]}" )    #last element
+FILES=( "${PARAM[@]:0:$NUM_SOURCES}" ) #all but last element
+####################################################################}}}
+
+# lowercase
+FILE_MATCHER=$( printf "%s" "$TARGET" | tr 'A-Z' 'a-z' )
+
+# matching
+case "$FILE_MATCHER" in
+    *.tar.gz|*.tgz) # {{{
+        CMD="tar cvvfz"
+    ;;
+    # }}}
+    *.tar.bz2|*.tbz2) # {{{
+        CMD="tar cvvfj"
+    ;;
+    # }}}
+    *.tar) # {{{
+        CMD="tar cvvf"
+    ;;
+    # }}}
+    *.gz) # {{{
+        CMD="gzip -r"
+    ;;
+    # }}}
+    *.bz2) # TODO: bzip2 doesn't take parameter for output # {{{
+        CMD="bzip2 --best -zk"
+    ;;
+    # }}}
+    *.zip) # {{{
+        CMD="zip -r"
+    ;;
+    # }}}
+    *.jml) # {{{
+        CMD="zip -r"
+    ;;
+    # }}}
+    *.7z) # {{{
+        CMD="7z a"
+    ;;
+    # }}}
+    *.jar|*.war) # {{{
+        CMD="jar -cvf"
+    ;;
+    # }}}
+    *.iso) # {{{
+        CMD="mkisofs -J -allow-lowercase -R -V "OpenCD8806" -iso-level 4 -o"
+    ;;
+    # }}}
+    *) # {{{
+        echo "Error: Type of file $TARGET could not be recognized!" >/dev/stderr
+        help
+        exit 1
+    ;;
+    # }}}
+esac
+
+tell "$CMD" "$TARGET" "${FILES[@]}"
+
+exit 0

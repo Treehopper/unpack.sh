@@ -1,0 +1,356 @@
+#!/bin/bash
+
+#This program is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+function cut_markers () #{{{
+{
+    FILE="$1"
+    MARKER="$2"
+
+    BEGIN=$(sed -n "/[<]$MARKER[>]/=" $1)
+    END=$(sed -n "/[<][/]$MARKER[>]/=" $1)
+    #remove anything before and after MARKER-pair
+    cat "$FILE" | head -n +$END | tail -n +$BEGIN
+} #}}}
+
+function help () #{{{
+{
+    ME=`basename $0`
+    echo -n "
+ Unpacks files whereas the unpacker is guesed by analyzing the file extension.
+
+ Usage: $ME [-e|-l] file1.EXTENSION file2.EXTENSION ...
+ Whereas EXTENSION is one of the following:
+" >/dev/stderr
+    cut_markers "$0" "MARKER" | sed -n "s/^[ \t]*\([^()]*\)) .*/\1/p" | \
+        sed "s/*//g" |\
+        tr "|" " " | \
+        sed "s/\(.*\)/   \1/" | sort | sed '1d' >/dev/stderr
+    echo -n "
+ If EXTENSION can't be mapped $ME tries to recognize the mime-type 'file(1)'
+ returns whereas the following types are supported:
+" >/dev/stderr
+    cut_markers "$0" "MARKER2" | sed -n "s/^[ \t]*\([^()]*\)) .*/\1/p" | \
+        sed "s/*//g" |\
+        tr "|" " " | \
+        sed "s/\(.*\)/   \1/" >/dev/stderr
+} #}}}
+
+#################### Too few parameters? ###########################{{{
+if [ $# -lt 1 ]
+then
+    help
+    exit 1
+fi
+####################################################################}}}
+
+############################ Options ###############################{{{
+while getopts ':le' o
+do
+    case "$o" in
+        l)     
+            option="-l"
+        ;;
+        e)     
+            option="-e"
+        ;;
+        [?])   
+#            echo "Usage: `basename $0` [-e|-l] files ..." >&2
+            help
+            exit 2
+        ;;
+    esac
+done
+shift $(($OPTIND - 1))
+####################################################################}}}
+
+while [ ! -z "$1" ]
+do
+    file=$1
+
+    if [ ! -e "$file" ] 
+    then
+        echo "File \"$file\" not found!" >&2
+        help
+        exit 3
+    fi
+
+    cmd="echo"
+
+    # lowercase
+    file_matcher=`echo $file | tr "[A-Z]" "[a-z]"`
+
+    # matching
+    case "$file_matcher" in #<MARKER> #{{{
+        *.tar.gz|*.tgz) # {{{
+            cmd="tar"
+            case "$option" in
+                -e)
+                   operation="xvfz"
+                ;;
+                -l)
+                   operation="tvfz"
+                ;;
+                *)
+                   operation="xvfz"
+                ;;
+            esac
+        ;;
+        # }}}
+        *.tar.bz2|*.tbz2) # {{{
+            cmd="tar"
+            case "$option" in
+                -e)
+                   operation="xvfj"
+                ;;
+                -l)
+                   operation="tvfj"
+                ;;
+                *)
+                   operation="xvfj"
+                ;;
+            esac
+        ;;
+        # }}}
+        *.vba.gz|*.vba) # {{{
+            cmd="vim"
+            operation=""
+        ;;
+        # }}}
+        *.gz) #{{{
+        # note that this comes after '.tar.gz'
+            cmd="gunzip"
+            case "$option" in
+                -e)
+                   operation=""
+                ;;
+                -l)
+                   operation="-l"
+                ;;
+                *)
+                   operation=""
+                ;;
+            esac
+        ;;
+        # }}}
+        *.tar) #{{{
+            cmd="tar"
+            case "$option" in
+                -e)
+                   operation="xvvf"
+                ;;
+                -l)
+                   operation="tvvf"
+                ;;
+                *)
+                   operation="xvvf"
+                ;;
+            esac
+        ;;
+        # }}}
+        *.svgz) #{{{
+        #the decompressed svg will be named *.sv
+            cmd="gunzip"
+            case "$option" in
+                -e)
+                   operation="--suffix=gz"
+                ;;
+                -l)
+                   operation="-l"
+                ;;
+                *)
+                   operation="--suffix=gz"
+                ;;
+            esac
+        ;;
+        # }}}
+        *.bz2) #{{{
+        # note that this comes after '.tar.bz2'
+            cmd="bunzip2"
+            case "$option" in
+                -e)
+                   operation="-k"
+                ;;
+                -l)
+                   operation="-l"
+                ;;
+                *)
+                   operation="-k"
+                ;;
+            esac
+        ;;
+        # }}}
+        *.rar|*.cbr) # {{{
+            cmd="unrar"
+            case "$option" in
+                -e)
+                   operation="x -kb"
+                ;;
+                -l)
+                   operation="l"
+                ;;
+                *)
+                   operation="x -kb"
+                ;;
+            esac
+        ;;
+        # }}}
+        *.zip|*.cbz|*.jar|*.war|*.ipk|*.epub|*.odp|*.kmz|*.pages) # {{{
+            cmd="unzip"
+            case "$option" in
+                -e)
+                   operation=""
+                ;;
+                -l)
+                   operation="-l"
+                ;;
+                *)
+                   operation=""
+                ;;
+            esac
+        ;;
+        # }}}
+        *.ace) # {{{
+            cmd="unace"
+            case "$option" in
+                -e)
+                   operation="x"
+                ;;
+                -l)
+                   operation="l"
+                ;;
+                *)
+                   operation="x"
+                ;;
+            esac
+        ;;
+        # }}}
+        *.7z) # {{{
+            cmd="7z"
+            case "$option" in
+                -e)
+                   operation="x"
+                ;;
+                -l)
+                   operation="l"
+                ;;
+                *)
+                   operation="x"
+                ;;
+            esac
+        ;;
+        # }}}
+        *.deb) # {{{
+            cmd="ar"
+#            cmd="dpkg-deb"
+            case "$option" in
+                -e)
+                   operation="-x"
+#                   operation="--extract"   #TODO: Needs target directory
+                ;;
+                -l)
+                   operation="-t"
+#                   operation="--contents"
+                ;;
+                *)
+                   operation="-x"
+#                   operation="--extract"   #TODO: Needs target directory
+                ;;
+            esac
+        ;;
+        # }}}
+        *.ins) #{{{
+        # LaTeX 
+            cmd="latex"
+            case "$option" in
+                *)
+                   operation=""
+                ;;
+            esac
+        ;;
+        # }}}
+        *.dtx) #{{{
+        # TeX 
+            cmd="tex"
+            case "$option" in
+                *)
+                   operation=""
+                ;;
+            esac
+        ;;
+        # }}}
+        *.jml) #{{{
+            cmd="unzip"
+            case "$option" in
+                -e)
+                   operation=""
+                ;;
+                -l)
+                   operation="-l"
+                ;;
+                *)
+                   operation=""
+                ;;
+            esac
+        ;;
+        # }}}
+        *) #</MARKER> #{{{
+        echo "Type of file \"$file\" could not be recognized by file extension!" >&2
+        echo "Trying to determine filetype using 'file -b --mime'" >&2
+
+        extension=""
+        mime_type="`file -b --mime $file`"
+
+        case "$mime_type" in #<MARKER2> #{{{
+            application/x-rar) # {{{
+                extension=".rar"
+            ;;
+            # }}}
+            application/x-zip) # {{{
+                extension=".zip"
+            ;;
+            # }}}
+            application/x-gzip) # {{{
+                extension=".gz"
+            ;;
+            # }}}
+            application/x-bzip2) # {{{
+                extension=".bz2"
+            ;;
+            # }}}
+            application/x-tar*) # {{{
+                extension=".tar"
+            ;;
+            # }}}
+            *) #</MARKER2> # {{{
+                echo "Type of file \"$file\" could not be recognized by mime type!" >&2
+                exit 4
+            ;;
+            # }}}
+        esac
+        echo "Suggestion:"
+        echo -e "\tmv \"$file\" \"$file$extension\""
+        echo -e "\t`basename $0` \"$file$extension\""
+        #TODO:
+        exit 5
+        ;;
+        # }}}
+    esac #}}}
+
+    echo "$cmd $operation $file" \# `file -b --mime "$file"`
+    ${cmd} $operation "$file" 
+
+    shift
+done
+
