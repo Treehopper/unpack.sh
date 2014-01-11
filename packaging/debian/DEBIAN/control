@@ -1,0 +1,8 @@
+Package: unpack
+Version: 1.0-0
+Section: base
+Priority: optional
+Architecture: all
+Depends: unrar (>= 1:4.0.3-1), sed (>= 3.02-8), unzip (>= 1.26-4), tar (>= 1.26-4), gzip (>= 1.4-1), bzip2 (>= 1.0.6-1)
+Maintainer: Max Hohenegger <unpack.sh@hohenegger.eu>
+Description: Unpack any kind of archive with the same command line interface.
