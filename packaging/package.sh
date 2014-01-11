@@ -9,6 +9,6 @@ dpkg-deb --build "$BASE" "$PACKAGE_FILE"
 
 echo "Install with dpkg -i $PACKAGE_FILE"
 
-rm "$BASE/usr/bin/*"
+rm $BASE/usr/bin/*
 
 exit 0
