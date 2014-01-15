@@ -7,7 +7,8 @@ BASE="debian"
 cp ../unpack ../pack "$BASE/usr/bin"
 dpkg-deb --build "$BASE" "$PACKAGE_FILE"
 
-echo "Install with dpkg -i $PACKAGE_FILE"
+echo "1. Install with $ dpkg -i $PACKAGE_FILE"
+echo "2. Install missing dependencies with $ apt-get -f install"
 
 rm $BASE/usr/bin/*
 
